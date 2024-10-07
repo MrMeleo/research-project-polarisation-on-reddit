@@ -1,9 +1,11 @@
-import zstandard
 import json
-import datetime
 import logging.handlers
-import os
-import sys
+import zstandard
+import datetime
+from config import parsing
+
+
+
 
 log = logging.getLogger("bot")
 log.setLevel(logging.DEBUG)
@@ -53,8 +55,17 @@ def read_lines_txt(file_name):
 		log.error(f"Error reading text file: {e}")
 
 
+def filter_subreddits(line, filters):
+	filters = parsing["filters"]
+	if filters and json.loads(line).get("subreddit") not in filters:
+		return True
+	else:
+		return False
+
+
 # Add documentation here
-def clean_value(value, file_lines, field, entry):
+def clean_value(value, line, file_lines, field):
+	entry = json.loads(line)
 	# Certain fields are formated, otherwise cleaned to comply with PostgreSQL and prevent JSON injections
 	if field == "created_utc":
 		value = datetime.fromtimestamp(int(entry.get("created_utc", 0))).strftime("%Y-%m-%d %H:%M")
@@ -77,17 +88,3 @@ def clean_value(value, file_lines, field, entry):
 		except json.JSONDecodeError:
 			pass 													# Not JSON, treat it as normal text
 	return value
-
-def submission_or_comment(input_filename, return_fields=False, submission_fields=None, comment_fields=None):
-    is_submission = "RS" in input_filename
-	
-    if return_fields:
-        if is_submission:
-            fields = submission_fields	
-        else:
-            fields = comment_fields
-
-        if not fields:
-            raise ValueError ("Please enter at least one field!")
-        
-    return is_submission
